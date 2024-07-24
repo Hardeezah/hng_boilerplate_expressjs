@@ -200,4 +200,148 @@ describe("AuthService", () => {
       await expect(authService.login(payload)).rejects.toThrow(HttpError);
     });
   });
+
+  describe('User Update Password', () => {
+    let user: User;
+    let token: string;
+
+    beforeAll(async () => {
+      
+      user = new User();
+      user.email = 'test@example.com';
+      user.password = await hashPassword('oldPassword123');
+      user = await AppDataSource.manager.save(user);
+      token = `token`;
+    });
+
+    afterAll(async () => {
+      await AppDataSource.manager.delete(User, { id: user.id });
+      await AppDataSource.destroy();
+    });
+
+    it('should update the password successfully', async () => {
+      const payload = {
+        current_password: 'oldPassword123',
+        new_password: 'newSecurePassword456',
+      };
+
+      const mockReq: any = {
+        user,
+        body: payload,
+        headers: {
+          authorization: token,
+        },
+      };
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      };
+
+      const mockNext: any = jest.fn();
+
+      const userController = new (require('../controllers/UserController').default)();
+      await userController.updatePassword(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        status: "success",
+        status_code: 200,
+        message: "Password updated successfully.",
+      });
+    });
+
+    it('should return error for incorrect current password', async () => {
+      const payload = {
+        current_password: 'wrongPassword',
+        new_password: 'newSecurePassword456',
+      };
+
+      const mockReq: any = {
+        user,
+        body: payload,
+        headers: {
+          authorization: token,
+        },
+      };
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      };
+
+      const mockNext: any = jest.fn();
+
+      const userController = new (require('../controllers/UserController').default)();
+      await userController.updatePassword(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        status: "unsuccessful",
+        status_code: 400,
+        message: "Current password is incorrect.",
+      });
+    });
+
+    it('should return error for missing fields', async () => {
+      const payload = {};
+
+      const mockReq: any = {
+        user,
+        body: payload,
+        headers: {
+          authorization: token,
+        },
+      };
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      };
+
+      const mockNext: any = jest.fn();
+
+      const userController = new (require('../controllers/UserController').default)();
+      await userController.updatePassword(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        status: "unsuccessful",
+        status_code: 400,
+        message: "Current password and new password must be provided.",
+      });
+    });
+
+    it('should return error for empty new password', async () => {
+      const payload = {
+        current_password: 'oldPassword123',
+        new_password: '',
+      };
+
+      const mockReq: any = {
+        user,
+        body: payload,
+        headers: {
+          authorization: token,
+        },
+      };
+
+      const mockRes: any = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      };
+
+      const mockNext: any = jest.fn();
+
+      const userController = new (require('../controllers/UserController').default)();
+      await userController.updatePassword(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        status: "unsuccessful",
+        status_code: 400,
+        message: "New password cannot be empty.",
+      });
+    });
+  });
 });
